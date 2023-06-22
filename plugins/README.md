@@ -34,4 +34,3 @@ of plugins currently supported by Ansible:
 
 A full list of plugin types can be found at
 [Working With Plugins](https://docs.ansible.com/ansible-core/2.12/plugins/plugins.html).
-

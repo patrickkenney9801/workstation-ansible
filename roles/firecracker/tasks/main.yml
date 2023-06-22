@@ -16,7 +16,7 @@
   ansible.builtin.unarchive:
     src: "https://github.com/firecracker-microvm/firecracker/releases/download/v{{ version }}/firecracker-v{{ version }}-{{ ansible_architecture }}.tgz"
     dest: ~/firecracker
-    remote_src: yes
+    remote_src: true
   register: firecracker_download
   when: not firecracker.stat.exists
 
