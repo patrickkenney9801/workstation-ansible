@@ -1,0 +1,32 @@
+---
+# tasks file for dnf
+
+- name: Install some common dnf repositories
+  become: true
+  ansible.builtin.dnf:
+    name:
+      - epel-release
+      - elrepo-release
+    state: present
+
+- name: Import Microsoft key
+  become: true
+  ansible.builtin.rpm_key:
+    state: present
+    key: https://packages.microsoft.com/keys/microsoft.asc
+
+- name: Copy vscode repo over
+  become: true
+  ansible.builtin.copy:
+    src: vscode.repo
+    dest: /etc/yum.repos.d/vscode.repo
+
+- name: Install some common dnf packages
+  become: true
+  ansible.builtin.dnf:
+    name:
+      - unzip
+      - code
+      - make
+      - htop
+    state: present

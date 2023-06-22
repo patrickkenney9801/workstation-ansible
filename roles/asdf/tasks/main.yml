@@ -1,0 +1,36 @@
+---
+# tasks file for asdf
+
+- name: Check asdf installed
+  stat:
+    path: ~/.asdf
+  register: asdf
+
+- name: Clone asdf repo
+  ansible.builtin.git:
+    repo: 'https://github.com/asdf-vm/asdf.git'
+    dest: ~/.asdf
+    single_branch: true
+    version: "v{{ version }}"
+  register: asdf_download
+  when: not asdf.stat.exists
+
+- name: Add asdf bash functionality
+  ansible.builtin.lineinfile:
+    path: ~/.bashrc
+    line: . "$HOME/.asdf/asdf.sh"
+    state: present
+  when: asdf_download.changed
+
+- name: Add asdf bash completion
+  ansible.builtin.lineinfile:
+    path: ~/.bashrc
+    line: . "$HOME/.asdf/completions/asdf.bash"
+    state: present
+  when: asdf_download.changed
+
+- name: Copy demo Makefile for asdf tooling
+  ansible.builtin.copy:
+    src: Makefile
+    dest: ~/.asdf-Makefile
+  when: asdf_download.changed

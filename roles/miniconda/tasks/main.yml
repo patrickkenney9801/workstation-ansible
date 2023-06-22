@@ -1,0 +1,30 @@
+---
+# tasks file for miniconda
+
+- name: Check miniconda installed
+  stat:
+    path: ~/miniconda3
+  register: miniconda
+
+- name: Download miniconda install
+  ansible.builtin.get_url:
+    url: https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh
+    dest: /tmp/install_miniconda.sh
+    mode: 0755
+  register: miniconda_download
+  when: not miniconda.stat.exists
+
+- name: Install Miniconda
+  ansible.builtin.command: "/tmp/install_miniconda.sh -f -b -p ~/miniconda3"
+  args:
+    creates: ~/miniconda3
+  when: miniconda_download.changed
+
+- name: Run conda init
+  ansible.builtin.command: ~/miniconda3/bin/conda init bash
+  when: miniconda_download.changed
+
+- name: Remove miniconda installer
+  ansible.builtin.file:
+    path: /tmp/install_miniconda.sh
+    state: absent

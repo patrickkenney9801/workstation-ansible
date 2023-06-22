@@ -1,0 +1,15 @@
+---
+
+- hosts: workstations
+  roles:
+    - asdf
+    - miniconda
+    - dnf
+    - rootless-podman
+    - firecracker
+
+- hosts: rootless-workstations
+  roles:
+    - asdf
+    - miniconda
+    - firecracker

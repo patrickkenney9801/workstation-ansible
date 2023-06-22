@@ -1,0 +1,29 @@
+---
+# tasks file for rootless-podman
+
+- name: Create user cgroups conf directory
+  become: true
+  ansible.builtin.file:
+    path: /etc/systemd/system/user@.service.d
+    state: directory
+    mode: '0755'
+
+- name: Copy user cgroups conf file
+  become: true
+  ansible.builtin.copy:
+    src: delegate.conf
+    dest: /etc/systemd/system/user@.service.d/delegate.conf
+
+- name: Force systemd to reread configs
+  become: true
+  ansible.builtin.systemd:
+    daemon_reload: true
+
+- name: Install podman
+  become: true
+  ansible.builtin.dnf:
+    name:
+      - podman
+    enablerepo:
+      - updates-testing
+    state: present
