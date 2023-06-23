@@ -32,6 +32,24 @@
     dest: ~/firecracker/bin/firecracker
     state: link
 
+- name: Create a symbolic link for jailer
+  ansible.builtin.file:
+    src: "~/firecracker/release-v{{ version }}-{{ ansible_architecture }}/jailer-v{{ version }}-{{ ansible_architecture }}"
+    dest: ~/firecracker/bin/jailer
+    state: link
+
+- name: Create a symbolic link for rebase-snap
+  ansible.builtin.file:
+    src: "~/firecracker/release-v{{ version }}-{{ ansible_architecture }}/rebase-snap-v{{ version }}-{{ ansible_architecture }}"
+    dest: ~/firecracker/bin/rebase-snap
+    state: link
+
+- name: Create a symbolic link for seccompiler-bin
+  ansible.builtin.file:
+    src: "~/firecracker/release-v{{ version }}-{{ ansible_architecture }}/seccompiler-bin-v{{ version }}-{{ ansible_architecture }}"
+    dest: ~/firecracker/bin/seccompiler-bin
+    state: link
+
 - name: Download kernel binary
   ansible.builtin.get_url:
     url: "https://s3.amazonaws.com/spec.ccfc.min/img/quickstart_guide/{{ ansible_architecture }}/kernels/vmlinux.bin"
@@ -54,6 +72,11 @@
   ansible.builtin.copy:
     src: start_vm.sh
     dest: ~/firecracker/start_vm.sh
+
+- name: Copy network bootstrap script
+  ansible.builtin.copy:
+    src: create_network.sh
+    dest: ~/firecracker/create_network.sh
 
 - name: Add firecracker to PATH
   ansible.builtin.lineinfile:
@@ -79,5 +102,5 @@
 - name: Create firecracker log file
   ansible.builtin.file:
     path: ~/firecracker/firecracker.log
-    state: file
+    state: present
     mode: '0644'

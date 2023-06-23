@@ -1,0 +1,32 @@
+version: '3'
+
+env:
+  ROOTFS_NAME: rootfs.ext4
+  TMP_DIR: /tmp/new-rootfs
+  BUILD_TOOL: podman
+  DOCKERFILE: Dockerfile
+  IMAGE: rootfs
+  TAG: rootfs
+  ROOTFS_SIZE_MB: 1000
+
+tasks:
+  rootfs:
+    cmds:
+      - task: create-rootfs-file
+      - task: build-image
+      - task: create-rootfs
+  create-rootfs-file:
+    cmds:
+      - dd if=/dev/zero of=$ROOTFS_NAME bs=1M count=$ROOTFS_SIZE_MB
+      - mkfs.ext4 $ROOTFS_NAME
+  build-image:
+    cmds:
+      - sudo $BUILD_TOOL build -t $IMAGE:$TAG -f $DOCKERFILE .
+  create-rootfs:
+    cmds:
+      - mkdir $TMP_DIR
+      - defer: rmdir $TMP_DIR
+      - sudo mount $ROOTFS_NAME $TMP_DIR
+      - defer: sudo umount $TMP_DIR
+      - sudo $BUILD_TOOL run --rm --user root --privileged -v $TMP_DIR:/new-rootfs -it $IMAGE:$TAG bash -c 'for d in bin etc lib root sbin usr; do tar c /${d} | tar x -C /new-rootfs; done && for dir in dev proc run sys var; do mkdir /new-rootfs/${dir}; done'
+    interactive: true
