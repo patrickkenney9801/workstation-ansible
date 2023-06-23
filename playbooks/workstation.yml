@@ -2,10 +2,11 @@
 
 - hosts: workstations
   roles:
+    - dnf
     - asdf
     - miniconda
-    - dnf
     - rootless-podman
+    - rootless-docker
     - firecracker
 
 - hosts: rootless-workstations
@@ -13,3 +14,7 @@
     - asdf
     - miniconda
     - firecracker
+
+- hosts: test
+  roles:
+    - docker

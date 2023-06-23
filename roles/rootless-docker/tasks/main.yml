@@ -1,0 +1,62 @@
+---
+# tasks file for rootless-docker
+
+- name: Copy docker-ce repo over
+  become: true
+  ansible.builtin.copy:
+    src: docker-ce.repo
+    dest: /etc/yum.repos.d/docker-ce.repo
+
+- name: Copy iptables.conf over to load modules on startup
+  become: true
+  ansible.builtin.copy:
+    src: iptables.conf
+    dest: /etc/modules-load.d/iptables.conf
+
+- name: Install docker
+  become: true
+  ansible.builtin.dnf:
+    name:
+      - docker-ce
+      - docker-ce-cli
+      - containerd.io
+      - docker-buildx-plugin
+      - docker-compose-plugin
+      - iptables
+    enablerepo:
+      - docker-ce-test
+    state: present
+  register: docker_download
+
+- name: Add the networking modules
+  become: true
+  community.general.modprobe:
+    name: "{{ item }}"
+    state: present
+  loop:
+    - ip6_tables
+    - ip6table_nat
+    - ip_tables
+    - iptable_nat
+    - br_netfilter
+
+- name: Enable sysctl bridge-nf-call-iptables
+  become: true
+  ansible.posix.sysctl:
+    name: net.bridge.bridge-nf-call-iptables
+    value: '1'
+    sysctl_set: true
+    state: present
+
+- name: Enable sysctl bridge-nf-call-ip6tables
+  become: true
+  ansible.posix.sysctl:
+    name: net.bridge.bridge-nf-call-ip6tables
+    value: '1'
+    sysctl_set: true
+    state: present
+    reload: true
+
+- name: Run rootless docker install script
+  ansible.builtin.script:
+    cmd: dockerd-rootless-setuptool.sh install

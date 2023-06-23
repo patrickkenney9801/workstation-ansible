@@ -15,7 +15,7 @@ ARCH=$(uname -m)
 # Set log file
 curl -X PUT --unix-socket "${FIRECRACKER_SOCKET}" \
     --data "{
-        \"log_path\": \"${FIRECRACKER_SOCKET}\",
+        \"log_path\": \"${FIRECRACKER_LOGFILE}\",
         \"level\": \"Debug\",
         \"show_level\": true,
         \"show_log_origin\": true
@@ -40,6 +40,29 @@ curl -X PUT --unix-socket "${FIRECRACKER_SOCKET}" \
     }" \
     "http://localhost/drives/rootfs"
 
+# The IP address of a guest is derived from its MAC address with
+# `fcnet-setup.sh`, this has been pre-configured in the guest rootfs. It is
+# important that `TAP_IP` and `FC_MAC` match this.
+FC_MAC="06:00:AC:10:00:02"
+TAP_DEV="tap0"
+
+# Set network interface
+curl -X PUT --unix-socket "${FIRECRACKER_SOCKET}" \
+    --data "{
+        \"iface_id\": \"eth0\",
+        \"guest_mac\": \"$FC_MAC\",
+        \"host_dev_name\": \"$TAP_DEV\"
+    }" \
+    "http://localhost/network-interfaces/eth0" || echo "Network interface not configured, vm cannot access the internet"
+
+# Set machine size
+curl -X PUT --unix-socket "${FIRECRACKER_SOCKET}" \
+  -d '{
+           "vcpu_count": 2,
+           "mem_size_mib": 2048
+  }' \
+  "http://localhost/machine-config"
+
 # API requests are handled asynchronously, it is important the configuration is
 # set, before `InstanceStart`.
 sleep 0.015s
@@ -54,3 +77,10 @@ curl -X PUT --unix-socket "${FIRECRACKER_SOCKET}" \
 echo "Login to the microVM with"
 echo 'User: root'
 echo 'Pass: root'
+echo 'OR if the network was configured'
+echo 'ssh -i $HOME/firecracker/ubuntu-18.04.id_rsa root@172.16.0.2'
+echo ""
+echo "For internet access inside the vm run:"
+echo "ip addr add 172.16.0.2/24 dev eth0"
+echo "ip link set eth0 up"
+echo "ip route add default via 172.16.0.1 dev eth0"
