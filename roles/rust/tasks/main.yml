@@ -1,0 +1,26 @@
+---
+# tasks file for rust
+
+- name: Check rust installed
+  stat:
+    path: ~/rust
+  register: rust
+
+- name: Download rust install
+  ansible.builtin.get_url:
+    url: https://sh.rustup.rs
+    dest: /tmp/install_rust.sh
+    mode: 0755
+  register: rust_download
+  when: not rust.stat.exists
+
+- name: Install rust
+  ansible.builtin.command: "/tmp/install_rust.sh -y"
+  args:
+    creates: ~/rust
+  when: rust_download.changed
+
+- name: Remove rust installer
+  ansible.builtin.file:
+    path: /tmp/install_rust.sh
+    state: absent

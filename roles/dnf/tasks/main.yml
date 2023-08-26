@@ -29,8 +29,14 @@
       - code
       - make
       - htop
-      - clang
-      - clang-tools-extra
     enablerepo:
       - vscode
+    state: present
+
+- name: Install C++ dnf packages
+  become: true
+  ansible.builtin.dnf:
+    name:
+      - clang
+      - clang-tools-extra
     state: present
