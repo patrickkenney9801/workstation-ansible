@@ -58,5 +58,5 @@
     reload: true
 
 - name: Run rootless docker install script
-  ansible.builtin.script:
+  ansible.builtin.command:
     cmd: dockerd-rootless-setuptool.sh install

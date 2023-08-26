@@ -29,4 +29,8 @@
       - code
       - make
       - htop
+      - clang
+      - clang-tools-extra
+    enablerepo:
+      - vscode
     state: present

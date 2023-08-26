@@ -17,4 +17,4 @@
 
 - hosts: test
   roles:
-    - docker
+    - rootless-docker

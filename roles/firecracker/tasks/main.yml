@@ -100,7 +100,8 @@
   when: firecracker_download.changed
 
 - name: Create firecracker log file
-  ansible.builtin.file:
-    path: ~/firecracker/firecracker.log
-    state: present
-    mode: '0644'
+  ansible.builtin.copy:
+    content: ""
+    dest: ~/firecracker/firecracker.log
+    force: false
+    mode: 0644
