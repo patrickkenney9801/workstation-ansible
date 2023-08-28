@@ -3,8 +3,10 @@
 - hosts: workstations
   roles:
     - dnf
+    - vscode
     - asdf
     - miniconda
+    - rust
     - rootless-podman
     - rootless-docker
     - firecracker
@@ -13,6 +15,7 @@
   roles:
     - asdf
     - miniconda
+    - rust
     - firecracker
 
 - hosts: test

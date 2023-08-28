@@ -1,6 +1,6 @@
-# rust
+# vscode
 
-Install rust.
+Install VS code.
 
 ## Requirements
 
@@ -20,7 +20,7 @@ n/a
 ---
 - hosts: workstations
   roles:
-    - rust
+    - vscode
 ```
 
 ## License

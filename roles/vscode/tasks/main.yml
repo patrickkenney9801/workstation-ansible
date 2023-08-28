@@ -1,0 +1,37 @@
+---
+# tasks file for vscode
+
+- name: Import Microsoft key
+  become: true
+  ansible.builtin.rpm_key:
+    state: present
+    key: https://packages.microsoft.com/keys/microsoft.asc
+
+- name: Copy vscode repo over
+  become: true
+  ansible.builtin.copy:
+    src: vscode.repo
+    dest: /etc/yum.repos.d/vscode.repo
+
+- name: Install vscode
+  become: true
+  ansible.builtin.dnf:
+    name:
+      - code
+    enablerepo:
+      - vscode
+    state: present
+
+- name: Install vscode extensions
+  ansible.builtin.command:
+    cmd: code --install-extension "{{ item }}"
+  loop:
+    - ms-azuretools.vscode-docker
+    - ms-vscode-remote.remote-ssh
+    - ms-vscode-remote.remote-ssh-edit
+    - ms-vscode.cmake-tools
+    - ms-vscode.cpptools
+    - ms-vscode.cpptools-extension-pack
+    - ms-vscode.cpptools-themes
+    - ms-vscode.makefile-tools
+    - ms-vscode.remote-explorer
