@@ -1,0 +1,121 @@
+---
+# tasks file for firecracker-containerd
+
+- name: Check firecracker-containerd git repo cloned
+  stat:
+    path: ~/firecracker/firecracker-containerd
+  register: firecracker_containerd_git
+
+- name: Clone firecracker-containerd git repo
+  ansible.builtin.git:
+    repo: 'https://github.com/firecracker-microvm/firecracker-containerd.git'
+    dest: ~/firecracker/firecracker-containerd
+    single_branch: true
+  when: not firecracker_containerd_git.stat.exists
+  register: firecracker_containerd_download
+
+- name: Check if rootful docker is running
+  shell: systemctl is-active docker
+  failed_when: rootful_docker_running.rc not in [0,3]
+  when: firecracker_containerd_download.changed
+  register: rootful_docker_running
+
+- name: Check current docker context
+  shell: docker context show
+  when: firecracker_containerd_download.changed
+  register: docker_context
+
+- name: Make sure rootful docker is running
+  become: true
+  ansible.builtin.systemd:
+    state: started
+    name: docker
+  when: firecracker_containerd_download.changed
+
+- name: Use default rootful docker context
+  shell: docker context use default
+  when: firecracker_containerd_download.changed
+
+- name: Build 'all' target for firecracker-containerd
+  make:
+    chdir: ~/firecracker/firecracker-containerd
+    target: all
+  when: firecracker_containerd_download.changed
+
+- name: Build 'image' target for firecracker-containerd
+  make:
+    chdir: ~/firecracker/firecracker-containerd
+    target: image
+  when: firecracker_containerd_download.changed
+
+- name: Reset docker context
+  shell: "docker context use {{ docker_context.stdout }}"
+  when: firecracker_containerd_download.changed
+
+- name: Stop rootful docker running if it was not running before
+  become: true
+  ansible.builtin.systemd:
+    state: stopped
+    name: docker
+  when: firecracker_containerd_download.changed and rootful_docker_running.stdout_lines[0] != "active"
+
+- name: Create a symbolic link for firecracker-containerd
+  ansible.builtin.file:
+    src: ~/firecracker/firecracker-containerd/firecracker-control/cmd/containerd/firecracker-containerd
+    dest: ~/firecracker/bin/firecracker-containerd
+    state: link
+
+- name: Create a symbolic link for firecracker-ctr
+  ansible.builtin.file:
+    src: ~/firecracker/firecracker-containerd/firecracker-control/cmd/containerd/firecracker-ctr
+    dest: ~/firecracker/bin/firecracker-ctr
+    state: link
+
+- name: Create a symbolic link for containerd-shim-aws-firecracker
+  ansible.builtin.file:
+    src: ~/firecracker/firecracker-containerd/runtime/containerd-shim-aws-firecracker
+    dest: ~/firecracker/bin/containerd-shim-aws-firecracker
+    state: link
+
+- name: Create firecracker-containerd directories
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+  loop:
+    - ~/.firecracker/var/lib/firecracker-containerd/runtime
+    - ~/.firecracker/var/lib/firecracker-containerd/snapshotter/devmapper
+    - ~/.firecracker/run/firecracker-containerd
+
+- name: Download kernel binary for firecracker-containerd
+  ansible.builtin.get_url:
+    url: "https://s3.amazonaws.com/spec.ccfc.min/img/quickstart_guide/{{ ansible_architecture }}/kernels/vmlinux.bin"
+    dest: ~/.firecracker/var/lib/firecracker-containerd/runtime/hello-vmlinux.bin
+    mode: 0644
+
+- name: Create a symbolic link for firecracker-containerd rootfs
+  ansible.builtin.file:
+    src: ~/firecracker/firecracker-containerd/tools/image-builder/rootfs.img
+    dest: ~/.firecracker/var/lib/firecracker-containerd/runtime/default-rootfs.img
+    state: link
+
+- name: Copy default firecracker-containerd config
+  ansible.builtin.template:
+    src: config.toml
+    dest: ~/.firecracker/config.toml
+
+- name: Copy default firecracker-runtime config
+  ansible.builtin.template:
+    src: firecracker-runtime.json
+    dest: ~/.firecracker/firecracker-runtime.json
+
+- name: Add FIRECRACKER_CONTAINERD_RUNTIME_CONFIG_PATH env variable
+  ansible.builtin.lineinfile:
+    path: ~/.bashrc
+    line: "export FIRECRACKER_CONTAINERD_RUNTIME_CONFIG_PATH=\"{{ ansible_facts['env']['HOME'] }}/.firecracker/firecracker-runtime.json\""
+    state: present
+
+- name: Add CONTAINERD_ADDRESS env variable
+  ansible.builtin.lineinfile:
+    path: ~/.bashrc
+    line: "export CONTAINERD_ADDRESS=\"{{ ansible_facts['env']['HOME'] }}/.firecracker/run/firecracker-containerd/containerd.sock\""
+    state: present

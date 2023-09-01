@@ -29,4 +29,5 @@
       - code
       - make
       - htop
+      - fish
     state: present

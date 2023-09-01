@@ -81,26 +81,38 @@
 - name: Add firecracker to PATH
   ansible.builtin.lineinfile:
     path: ~/.bashrc
-    line: PATH="$PATH:~/firecracker/bin"
+    line: "PATH=\"$PATH:{{ ansible_facts['env']['HOME'] }}/firecracker/bin\""
     state: present
   when: firecracker_download.changed
 
 - name: Add FIRECRACKER_SOCKET env variable
   ansible.builtin.lineinfile:
     path: ~/.bashrc
-    line: FIRECRACKER_SOCKET="$HOME/firecracker/firecracker.socket"
+    line: "export FIRECRACKER_SOCKET=\"{{ ansible_facts['env']['HOME'] }}/firecracker/firecracker.socket\""
     state: present
   when: firecracker_download.changed
 
 - name: Add FIRECRACKER_LOGFILE env variable
   ansible.builtin.lineinfile:
     path: ~/.bashrc
-    line: FIRECRACKER_LOGFILE="$HOME/firecracker/firecracker.log"
+    line: "export FIRECRACKER_LOGFILE=\"{{ ansible_facts['env']['HOME'] }}/firecracker/firecracker.log\""
     state: present
   when: firecracker_download.changed
 
 - name: Create firecracker log file
   ansible.builtin.file:
     path: ~/firecracker/firecracker.log
-    state: present
+    state: touch
     mode: '0644'
+
+- name: Check firecracker git repo cloned
+  stat:
+    path: ~/firecracker/firecracker
+  register: firecracker_git
+
+- name: Clone firecracker git repo
+  ansible.builtin.git:
+    repo: 'https://github.com/firecracker-microvm/firecracker.git'
+    dest: ~/firecracker/firecracker
+    single_branch: true
+  when: not firecracker_git.stat.exists

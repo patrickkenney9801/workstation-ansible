@@ -8,6 +8,7 @@
     - rootless-podman
     - rootless-docker
     - firecracker
+    - firecracker-containerd
 
 - hosts: rootless-workstations
   roles:
@@ -17,4 +18,5 @@
 
 - hosts: test
   roles:
-    - docker
+    - firecracker
+    - firecracker-containerd
