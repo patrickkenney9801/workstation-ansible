@@ -25,4 +25,28 @@
       - clang
       - clang-tools-extra
       - cmake
+      - gdb
     state: present
+
+- name: Install QEMU
+  become: true
+  ansible.builtin.dnf:
+    name:
+      - qemu-kvm
+      - qemu-img
+      - virt-install
+      - libvirt
+      - tigervnc
+      - libguestfs
+      - flex
+      - bison
+      - elfutils-libelf-devel
+      - openssl-devel
+
+- name: Install observability tools
+  become: true
+  ansible.builtin.dnf:
+    name:
+      - perf
+      - sysstat
+      - util-linux
