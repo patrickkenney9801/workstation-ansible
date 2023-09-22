@@ -20,4 +20,4 @@
 
 - hosts: test
   roles:
-    - rootless-docker
+    - dnf
