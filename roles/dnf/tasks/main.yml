@@ -38,6 +38,7 @@
       - libvirt
       - tigervnc
       - libguestfs
+      - guestfs-tools
       - flex
       - bison
       - elfutils-libelf-devel
