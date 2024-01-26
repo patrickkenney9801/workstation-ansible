@@ -10,6 +10,7 @@
     - rootless-podman
     - rootless-docker
     - firecracker
+    - local-k8s
 
 - hosts: rootless-workstations
   roles:
@@ -20,4 +21,4 @@
 
 - hosts: test
   roles:
-    - dnf
+    - local-k8s
