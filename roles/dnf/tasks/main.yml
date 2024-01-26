@@ -43,6 +43,7 @@
       - bison
       - elfutils-libelf-devel
       - openssl-devel
+    state: present
 
 - name: Install observability tools
   become: true
@@ -51,3 +52,4 @@
       - perf
       - sysstat
       - util-linux
+    state: present
