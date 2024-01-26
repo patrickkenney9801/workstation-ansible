@@ -11,6 +11,7 @@
     - rootless-docker
     - firecracker
     - local-k8s
+    - stargz
 
 - hosts: rootless-workstations
   roles:
@@ -21,4 +22,4 @@
 
 - hosts: test
   roles:
-    - local-k8s
+    - stargz

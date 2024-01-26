@@ -1,0 +1,114 @@
+---
+# tasks file for stargz
+
+- name: Install fuse dnf packages
+  become: true
+  ansible.builtin.dnf:
+    name:
+      - fuse
+    state: present
+
+- name: Add fuse modules
+  become: true
+  community.general.modprobe:
+    name: fuse
+    state: present
+
+- name: Check stargz installed
+  stat:
+    path: "/usr/local/bin/containerd-stargz-grpc"
+  register: stargz
+
+- name: Download stargz
+  become: true
+  ansible.builtin.unarchive:
+    src: "https://github.com/containerd/stargz-snapshotter/releases/download/v{{ version }}/stargz-snapshotter-v{{ version }}-linux-amd64.tar.gz"
+    dest: /usr/local/bin
+    remote_src: true
+  when: not stargz.stat.exists
+
+- name: Create a symbolic link for ctr-remote so it can be used by root
+  become: true
+  ansible.builtin.file:
+    src: "/usr/local/bin/ctr-remote"
+    dest: "/usr/bin/ctr-remote"
+    state: link
+
+- name: Download stargz-snapshotter systemctl configuration
+  become: true
+  ansible.builtin.get_url:
+    url: "https://raw.githubusercontent.com/containerd/stargz-snapshotter/v{{ version }}/script/config/etc/systemd/system/stargz-snapshotter.service"
+    dest: "/etc/systemd/system/stargz-snapshotter.service"
+    mode: '0644'
+
+- name: Download stargz-store systemctl configuration
+  become: true
+  ansible.builtin.get_url:
+    url: "https://raw.githubusercontent.com/containerd/stargz-snapshotter/v{{ version }}/script/config-cri-o/etc/systemd/system/stargz-store.service"
+    dest: "/etc/systemd/system/stargz-store.service"
+    mode: '0644'
+
+- name: Enable stargz services
+  become: true
+  ansible.builtin.systemd_service:
+    name: "{{ item }}"
+    state: restarted
+    enabled: true
+  loop:
+    - stargz-snapshotter
+    - stargz-store
+
+- name: Add [storage.options] to podman config
+  become: true
+  ansible.builtin.lineinfile:
+    path: /etc/containers/storage.conf
+    line: '[storage.options]'
+    state: present
+    create: true
+    mode: '0644'
+
+- name: Add stargz-store to podman config
+  become: true
+  ansible.builtin.lineinfile:
+    path: /etc/containers/storage.conf
+    insertafter: '^\[storage.options\]'
+    line: 'additionallayerstores = ["/var/lib/stargz-store/store:ref"]'
+    state: present
+
+- name: Add [proxy_plugins] to containerd config
+  become: true
+  ansible.builtin.lineinfile:
+    path: /etc/containerd/config.toml
+    line: "[proxy_plugins]"
+    state: present
+
+# warning this will hide any previously stored docker images
+# commenting out this configuration will make older images
+# visible again
+- name: Copy stargz-snapshotter docker config over
+  become: true
+  ansible.builtin.copy:
+    src: docker_daemon.json
+    dest: /etc/docker/daemon.json
+    backup: true
+
+- name: Add stargz-snapshotter to containerd config
+  become: true
+  ansible.builtin.blockinfile:
+    path: /etc/containerd/config.toml
+    insertafter: '^\[proxy_plugins\]'
+    state: present
+    block: |
+      # add stargz
+        [proxy_plugins.stargz]
+          type = "snapshot"
+          address = "/run/containerd-stargz-grpc/containerd-stargz-grpc.sock"
+
+- name: Restart container technologies to pickup stargz
+  become: true
+  ansible.builtin.systemd_service:
+    name: "{{ item }}"
+    state: restarted
+  loop:
+    - containerd
+    - docker
