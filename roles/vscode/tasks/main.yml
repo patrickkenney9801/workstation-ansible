@@ -19,7 +19,7 @@
     name:
       - code
     enablerepo:
-      - vscode
+      - code
     state: present
 
 - name: Install vscode extensions

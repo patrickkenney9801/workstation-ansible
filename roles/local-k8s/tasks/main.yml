@@ -1,0 +1,65 @@
+---
+# tasks file for local-k8s
+
+- name: Set vm.max_map_count for SonarQube
+  become: true
+  ansible.posix.sysctl:
+    name: vm.max_map_count
+    value: '524288'
+    sysctl_set: true
+    state: present
+    reload: true
+
+- name: Set fs.inotify.max_user_watches for KinD
+  become: true
+  ansible.posix.sysctl:
+    name: fs.inotify.max_user_watches
+    value: '1048576'
+    sysctl_set: true
+    state: present
+    reload: true
+
+- name: Set fs.inotify.max_user_instances for KinD
+  become: true
+  ansible.posix.sysctl:
+    name: fs.inotify.max_user_instances
+    value: '512'
+    sysctl_set: true
+    state: present
+    reload: true
+
+- name: Add default minikube ip address to startup environment
+  ansible.builtin.lineinfile:
+    path: ~/.bashrc
+    line: "export MINIKUBE_IP={{ minikube_ip }}"
+    state: present
+
+- name: Add minikube's dns server to browse services with ingresses
+  become: true
+  ansible.builtin.lineinfile:
+    path: /etc/NetworkManager/NetworkManager.conf
+    insertafter: '^\[main\]'
+    line: "dns=dnsmasq"
+    state: present
+
+- name: Create dnsmasq directory
+  become: true
+  ansible.builtin.file:
+    path: /etc/NetworkManager/dnsmasq.d
+    state: directory
+    mode: '0755'
+
+- name: Add minikube's dns server to dnsmasq for the `domain` domain
+  become: true
+  ansible.builtin.lineinfile:
+    create: true
+    path: /etc/NetworkManager/dnsmasq.d/minikube.conf
+    line: "server=/domain/{{ minikube_ip }}"
+    state: present
+
+- name: Restart NetworkManager to pickup dns changes
+  become: true
+  ansible.builtin.systemd_service:
+    name: NetworkManager.service
+    state: restarted
+    daemon_reload: true
