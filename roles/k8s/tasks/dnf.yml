@@ -1,0 +1,19 @@
+---
+# tasks file for installing k8s packages over dnf
+
+- name: Copy k8s-1.29 repo over
+  become: true
+  ansible.builtin.copy:
+    src: k8s-1.29.repo
+    dest: /etc/yum.repos.d/kubernetes.repo
+
+- name: Install k8s via dnf
+  become: true
+  ansible.builtin.dnf:
+    name:
+      - kubelet
+      - kubeadm
+      - kubectl
+    enablerepo:
+      - kubernetes
+    state: present

@@ -1,0 +1,66 @@
+---
+# tasks file for k8s
+
+- name: tmp
+  ansible.builtin.debug:
+    msg: "Here"
+  when: inventory_hostname in groups['k8s-master']
+
+- name: Set vm.max_map_count for SonarQube
+  become: true
+  ansible.posix.sysctl:
+    name: vm.max_map_count
+    value: "524288"
+    sysctl_set: true
+    state: present
+    reload: true
+
+- name: Remove swapfile from /etc/fstab
+  become: true
+  ansible.posix.mount:
+    name: "{{ item }}"
+    fstype: swap
+    state: absent
+  with_items:
+    - swap
+    - none
+
+- name: Disable swap
+  become: true
+  ansible.builtin.command: swapoff -a
+  when: ansible_swaptotal_mb > 0
+
+- name: Configure SELinux to be in permissive mode
+  become: true
+  ansible.posix.selinux:
+    policy: targeted
+    state: permissive
+  when: ansible_selinux.status == "enabled"
+
+- name: dnf install k8s tasks
+  ansible.builtin.include_tasks:
+    file: dnf.yml
+  when: ansible_facts['pkg_mgr'] == "dnf"
+
+- name: apt install k8s tasks
+  ansible.builtin.include_tasks:
+    file: apt.yml
+  when: ansible_facts['pkg_mgr'] == "apt"
+
+- name: Enable kubelet
+  become: true
+  ansible.builtin.systemd_service:
+    name: kubelet
+    enabled: true
+
+- name: Setup k8s cluster
+  ansible.builtin.include_tasks:
+    file: kubeadm.yml
+  when: inventory_hostname in groups['k8s-master']
+
+- name: Join worker nodes to k8s cluster
+  ansible.builtin.command: >
+    "{{ hostvars['k8s-master']['kubeadm_output']['stdout_lines'][0] }}"
+    --cri-socket="{{ cri_socket }}"
+    --node-name="{{ inventory_hostname }}"
+  when: "'k8s-worker' in groups and inventory_hostname in groups['k8s-worker'] and 'kubeadm join' in hostvars['k8s-master']['kubeadm_output']['stdout']"

@@ -1,0 +1,13 @@
+---
+# defaults file for k8s installation
+
+k8s_cluster_name: "scea"
+cri_socket: "unix:///var/run/containerd/containerd.sock"
+pod_network_cidr: "10.244.0.0/16"
+k8s_default_cni: "calico"
+schedule_on_control_plane: true
+k8s_cpu_manager_policy: none
+containerd_pause_image: "registry.k8s.io/pause:3.9"
+# k8s_resolve_conf: "/etc/resolv.conf"
+# NetworkManager has "/var/run/NetworkManager/no-stub-resolv.conf"
+# ubuntu has "/run/systemd/resolve/resolv.conf"

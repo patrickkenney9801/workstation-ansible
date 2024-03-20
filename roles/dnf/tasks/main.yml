@@ -53,3 +53,10 @@
       - sysstat
       - util-linux
     state: present
+
+- name: Install apptainer
+  become: true
+  ansible.builtin.dnf:
+    name:
+      - apptainer
+    state: present

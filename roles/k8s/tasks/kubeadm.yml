@@ -1,0 +1,123 @@
+---
+# tasks file for setting up k8s via kubeadm
+
+- name: Check k8s cluster initialized
+  become: true
+  stat:
+    path: /etc/kubernetes/admin.conf
+  register: kubeadm_initialized
+
+# Check and fix firewalld rules
+- name: Check services on system
+  ansible.builtin.service_facts:
+
+- name: Open ports 6443 and 10250
+  become: true
+  ansible.posix.firewalld:
+    zone: public
+    state: enabled
+    port: "{{ item }}"
+  loop:
+    - 6443/tcp
+    - 10250/tcp
+  when: "'firewalld.service' in services"
+
+# Ensure containerd can be used as the CRI
+- name: Ensure cri plugin for containerd is not disabled
+  become: true
+  ansible.builtin.lineinfile:
+    path: /etc/containerd/config.toml
+    line: disabled_plugins = ["cri"]
+    state: absent
+  register: cri_containerd_enabled
+  when: "'containerd' in cri_socket"
+
+# TODO(Patrick) set containerd_pause_image, set SystemdCgroup = true
+
+- name: Reload containerd
+  become: true
+  ansible.builtin.systemd_service:
+    name: containerd
+    state: restarted
+  when: cri_containerd_enabled.changed
+
+# Set DNS resolve configuration file to sane default
+- set_fact: k8s_resolve_conf="/var/run/NetworkManager/no-stub-resolv.conf"
+  when: k8s_resolve_conf is undefined and "'NetworkManager.service' in services"
+
+- set_fact: k8s_resolve_conf="/run/systemd/resolve/resolv.conf"
+  when: k8s_resolve_conf is undefined and ansible_os_family == "Ubuntu"
+
+- set_fact: k8s_resolve_conf="/etc/resolv.conf"
+  when: k8s_resolve_conf is undefined
+
+# Startup k8s cluster via kubeadm
+- name: Copy kubeadm configuration file
+  ansible.builtin.template:
+    src: templates/kubeadm-config.j2
+    dest: "/tmp/{{ k8s_cluster_name }}-kubeadm-config.yaml"
+  when: not kubeadm_initialized.stat.exists
+
+- name: Initialize k8s master
+  become: true
+  ansible.builtin.command: kubeadm init --config="/tmp/{{ k8s_cluster_name }}-kubeadm-config.yaml"
+  register: kubeadm_output
+  when: not kubeadm_initialized.stat.exists
+
+- name: Delete kubeadm configuration file
+  ansible.builtin.file:
+    path: "/tmp/{{ k8s_cluster_name }}-kubeadm-config.yaml"
+    state: absent
+
+# Setup remote user's k8s cluster access
+- name: Ensure user kube config directory exists
+  ansible.builtin.file:
+    path: "{{ ansible_user_dir }}/.kube"
+    state: directory
+    mode: "0755"
+
+- name: Copy new k8s config to remote user's home
+  become: true
+  ansible.builtin.copy:
+    remote_src: true
+    src: /etc/kubernetes/admin.conf
+    dest: "{{ ansible_user_dir }}/.kube/{{ k8s_cluster_name }}-config"
+    mode: preserve
+    owner: "{{ ansible_user_id }}"
+    group: "{{ ansible_user_gid }}"
+    backup: yes
+
+- name: Add new k8s cluster config to KUBECONFIG
+  ansible.builtin.lineinfile:
+    path: ~/.bashrc
+    line: export KUBECONFIG="${KUBECONFIG}:{{ ansible_user_dir }}/.kube/{{ k8s_cluster_name }}-config"
+    state: present
+
+# Setup Calico CNI if set as default
+- name: Copy Calico configuration file
+  ansible.builtin.template:
+    src: templates/calico.j2
+    dest: "/tmp/{{ k8s_cluster_name }}-calico-config.yaml"
+  when: kubeadm_output.changed and k8s_default_cni == 'calico'
+
+- name: Setup Calico as k8s cluster default CNI
+  ansible.builtin.command: "{{ item }}"
+  loop:
+    - kubectl --cluster {{ k8s_cluster_name }} create -f https://raw.githubusercontent.com/projectcalico/calico/v3.27.2/manifests/tigera-operator.yaml
+    - kubectl --cluster {{ k8s_cluster_name }} create -f "/tmp/{{ k8s_cluster_name }}-calico-config.yaml"
+  when: kubeadm_output.changed and k8s_default_cni == 'calico'
+
+- name: Delete Calico configuration file
+  ansible.builtin.file:
+    path: "/tmp/{{ k8s_cluster_name }}-calico-config.yaml"
+    state: absent
+
+# Optionally remove control plane scheduling taints
+- name: Allow work to be placed on control plane nodes
+  ansible.builtin.command: kubectl --cluster {{ k8s_cluster_name }} taint nodes --all node-role.kubernetes.io/control-plane-
+  when: kubeadm_output.changed and schedule_on_control_plane
+
+- name: Allow work to be placed on master nodes
+  ansible.builtin.command: kubectl --cluster {{ k8s_cluster_name }} taint nodes --all node-role.kubernetes.io/master-
+  when: kubeadm_output.changed and schedule_on_control_plane
+  ignore_errors: true

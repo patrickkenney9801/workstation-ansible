@@ -20,6 +20,16 @@
     - rust
     - firecracker
 
+- hosts: k8s-master
+  roles:
+    #- rootless-docker
+    - k8s
+
+- hosts: k8s-worker
+  roles:
+    #- rootless-docker
+    - k8s
+
 - hosts: test
   roles:
-    - stargz
+    - dnf
