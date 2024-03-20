@@ -32,14 +32,34 @@
   register: cri_containerd_enabled
   when: "'containerd' in cri_socket"
 
-# TODO(Patrick) set containerd_pause_image, set SystemdCgroup = true
+- name: Ensure containerd pause image is correct
+  become: true
+  ansible.builtin.lineinfile:
+    path: /etc/containerd/config.toml
+    regexp: '^    sandbox_image = ".*"'
+    line: '    sandbox_image = "{{ containerd_pause_image }}"'
+    backrefs: yes
+    state: present
+  register: cri_containerd_pause_image
+  when: "'containerd' in cri_socket"
+
+- name: Ensure containerd cri plugin uses SystemdCgroups
+  become: true
+  ansible.builtin.lineinfile:
+    path: /etc/containerd/config.toml
+    regexp: "^            SystemdCgroup = false"
+    line: "            SystemdCgroup = true"
+    backrefs: yes
+    state: present
+  register: cri_containerd_cgroups
+  when: "'containerd' in cri_socket"
 
 - name: Reload containerd
   become: true
   ansible.builtin.systemd_service:
     name: containerd
     state: restarted
-  when: cri_containerd_enabled.changed
+  when: cri_containerd_enabled.changed or cri_containerd_pause_image.changed or cri_containerd_cgroups.changed
 
 # Set DNS resolve configuration file to sane default
 - set_fact: k8s_resolve_conf="/var/run/NetworkManager/no-stub-resolv.conf"
