@@ -1,0 +1,23 @@
+---
+# tasks file for installing docker packages over dnf
+
+- name: Copy docker-ce repo over
+  become: true
+  ansible.builtin.copy:
+    src: docker-ce.repo
+    dest: /etc/yum.repos.d/docker-ce.repo
+
+- name: Install docker
+  become: true
+  ansible.builtin.dnf:
+    name:
+      - docker-ce
+      - docker-ce-cli
+      - containerd.io
+      - docker-buildx-plugin
+      - docker-compose-plugin
+      - iptables
+    enablerepo:
+      - docker-ce-test
+    state: present
+  register: docker_download
